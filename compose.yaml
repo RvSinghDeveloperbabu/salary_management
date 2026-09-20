@@ -1,0 +1,34 @@
+# Development environment.
+#
+# There is no database service: SQLite is a file, not a server, which is half
+# the point of docs/decisions.md 2. The database lives in a named volume so a
+# 10k-row seed never touches the host filesystem or git.
+#
+# The `web` service is added in build-plan phase 7, when the frontend exists.
+
+name: salary-management
+
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+    volumes:
+      # Source is bind-mounted, so host edits are live without a rebuild.
+      - ./api:/app
+      # Named volumes shadow the bind mount. Gems and the database are
+      # Linux artefacts and must not leak onto a macOS host.
+      - bundle:/usr/local/bundle
+      - sqlite:/app/storage
+    ports:
+      - "3000:3000"
+    environment:
+      RAILS_ENV: development
+      # Bind to all interfaces or the port is unreachable from the host.
+      BINDING: 0.0.0.0
+    stdin_open: true
+    tty: true
+
+volumes:
+  bundle:
+  sqlite:
