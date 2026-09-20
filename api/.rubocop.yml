@@ -1,8 +1,17 @@
-# Omakase Ruby styling for Rails
+# Omakase Ruby styling for Rails. The point of omakase is that house style is
+# not worth arguing about on a one-day budget, so this file stays thin.
 inherit_gem: { rubocop-rails-omakase: rubocop.yml }
 
-# Overwrite or add rules to create your own house style
-#
-# # Use `[a, [b, c]]` not `[ a, [ b, c ] ]`
-# Layout/SpaceInsideArrayLiteralBrackets:
-#   Enabled: false
+AllCops:
+  TargetRubyVersion: 3.4
+  NewCops: enable
+  Exclude:
+    # Generated, not authored.
+    - "db/schema.rb"
+    - "db/migrate/*_create_*_tables.rb"
+    - "bin/**/*"
+    - "vendor/**/*"
+    - "tmp/**/*"
+    - "storage/**/*"
+    # The built React bundle.
+    - "public/**/*"
