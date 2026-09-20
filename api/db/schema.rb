@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_20_105349) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_20_111302) do
   create_table "audit_events", force: :cascade do |t|
     t.string "action", null: false
     t.bigint "actor_id"
@@ -118,10 +118,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_20_105349) do
     t.check_constraint "effective_to IS NULL OR effective_to >= effective_from", name: "salaries_period_ordered"
   end
 
+  create_table "sessions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "ip_address"
+    t.datetime "updated_at", null: false
+    t.string "user_agent"
+    t.integer "user_id", null: false
+    t.index ["user_id"], name: "index_sessions_on_user_id"
+  end
+
+  create_table "users", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "email_address", null: false
+    t.string "password_digest", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email_address"], name: "index_users_on_email_address", unique: true
+  end
+
+  add_foreign_key "audit_events", "users", column: "actor_id", on_delete: :nullify
   add_foreign_key "employees", "departments"
   add_foreign_key "employees", "employees", column: "manager_id"
   add_foreign_key "employees", "job_levels"
   add_foreign_key "employees", "salaries", column: "current_salary_id"
   add_foreign_key "pay_bands", "job_levels"
   add_foreign_key "salaries", "employees"
+  add_foreign_key "salaries", "users", column: "recorded_by_id", on_delete: :nullify
+  add_foreign_key "sessions", "users"
 end

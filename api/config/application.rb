@@ -40,5 +40,16 @@ module Api
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # api_only strips the cookie middleware, which leaves cookies.signed
+    # working in the controller while nothing ever writes Set-Cookie.
+    # Authentication uses a signed, http-only session cookie rather than a
+    # bearer token, because the client is a same-origin SPA and a token in
+    # JavaScript's reach is a worse place for a credential that unlocks
+    # every salary in the organisation. See docs/decisions.md 6.
+    #
+    # Only Cookies is restored. Nothing uses Rails' session hash, so
+    # Session::CookieStore stays out.
+    config.middleware.use ActionDispatch::Cookies
   end
 end

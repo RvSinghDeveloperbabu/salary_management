@@ -1,10 +1,13 @@
 Rails.application.routes.draw do
-  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
+  # Everything the SPA talks to is versioned. The version is in the path
+  # rather than a header so a URL pasted into a terminal is complete.
+  namespace :api do
+    namespace :v1 do
+      resource :session, only: %i[create destroy]
+      resource :me, only: %i[show], controller: :me
+    end
+  end
 
-  # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
-  # Can be used by load balancers and uptime monitors to verify that the app is live.
+  # Liveness probe. Returns 200 if the app boots, 500 otherwise.
   get "up" => "rails/health#show", as: :rails_health_check
-
-  # Defines the root path route ("/")
-  # root "posts#index"
 end

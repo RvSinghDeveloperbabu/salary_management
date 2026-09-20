@@ -49,6 +49,11 @@ RSpec.configure do |config|
   # example, not merely for every run.
   config.before(:each) do
     Faker::Config.random = Random.new(42)
+
+    # The test cache is a real memory store, so a rate-limit counter or a
+    # cached analytics payload would otherwise survive into the next
+    # example and make it order-dependent.
+    Rails.cache.clear
   end
 end
 

@@ -20,7 +20,12 @@ Rails.application.configure do
 
   # Show full error reports.
   config.consider_all_requests_local = true
-  config.cache_store = :null_store
+  # A real store rather than the generated :null_store. Two things under
+  # test depend on caching actually caching: the sign-in rate limit, and
+  # the analytics watermark cache. Against :null_store both would pass while
+  # doing nothing, which is worse than no spec. rails_helper clears it
+  # before every example so nothing leaks between them.
+  config.cache_store = :memory_store
 
   # Render exception templates for rescuable exceptions and raise for other exceptions.
   config.action_dispatch.show_exceptions = :rescuable

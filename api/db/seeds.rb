@@ -76,6 +76,9 @@ US_BANDS = {
 EMPLOYMENT_TYPES = [ [ "full_time", 88 ], [ "part_time", 7 ], [ "contract", 5 ] ].freeze
 RAISE_REASONS = %w[merit merit merit promotion market_adjustment].freeze
 
+HR_MANAGER_EMAIL = "hr@example.com".freeze
+HR_MANAGER_PASSWORD = "compensation2026".freeze
+
 TERMINATED_SHARE = 0.08
 OUTLIERS_BELOW = 22
 OUTLIERS_ABOVE = 20
@@ -128,6 +131,8 @@ ActiveRecord::Base.transaction do
   ExchangeRate.delete_all
   JobLevel.delete_all
   Department.delete_all
+  Session.delete_all
+  User.delete_all
 
   # Rails declares primary keys as INTEGER PRIMARY KEY AUTOINCREMENT, and
   # SQLite keeps that counter in sqlite_sequence across a DELETE. Without
@@ -141,6 +146,15 @@ ActiveRecord::Base.transaction do
   # ----------------------------------------------------------------------
 
   puts "Creating reference data..."
+
+  # The demo login. Credentials are printed at the end rather than hidden,
+  # because this is a seeded demo account in a throwaway database, not a
+  # secret. Nothing here goes near config/credentials.
+  hr_manager = User.create!(
+    email_address: HR_MANAGER_EMAIL,
+    password: HR_MANAGER_PASSWORD,
+    password_confirmation: HR_MANAGER_PASSWORD
+  )
 
   departments = DEPARTMENTS.map do |name, cost_centre, _share|
     Department.create!(name: name, cost_centre: cost_centre)
@@ -338,7 +352,7 @@ ActiveRecord::Base.transaction do
         effective_from: from,
         effective_to: to,
         change_reason: i.zero? ? "hire" : RAISE_REASONS.sample(random: RNG),
-        recorded_by_id: nil,
+        recorded_by_id: hr_manager.id,
         created_at: NOW,
         updated_at: NOW
       }
@@ -379,5 +393,6 @@ puts "  exchange rates #{ExchangeRate.count}"
 puts "  employees      #{Employee.count} (#{Employee.active.count} active)"
 puts "  salaries       #{Salary.count}"
 puts
-puts "NOTE: the HR manager login is seeded in build-plan phase 4, once the"
-puts "users table exists."
+puts "Sign in with:"
+puts "  #{HR_MANAGER_EMAIL}"
+puts "  #{HR_MANAGER_PASSWORD}"
