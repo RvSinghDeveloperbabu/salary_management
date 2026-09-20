@@ -17,10 +17,10 @@ SimpleCov.start "rails" do
   add_filter "app/mailers/"
 
   # Mirrors the layout in CLAUDE.md "Code structure".
-  add_group "Queries",     "app/queries"
-  add_group "Services",    "app/services"
-  add_group "Statistics",  "app/lib/stats"
-  add_group "Serializers", "app/serializers"
+  group "Queries",     "app/queries"
+  group "Services",    "app/services"
+  group "Statistics",  "app/lib/stats"
+  group "Serializers", "app/serializers"
 
   # The floor is only enforced on a full run. Running a single spec file
   # would otherwise "fail" for not exercising the rest of the application,
