@@ -1,10 +1,8 @@
 # Development environment.
 #
 # There is no database service: SQLite is a file, not a server, which is half
-# the point of docs/decisions.md 2. The database lives in a named volume so a
-# 10k-row seed never touches the host filesystem or git.
-#
-# The `web` service is added in build-plan phase 7, when the frontend exists.
+# the reason it was chosen. The database lives in a named volume so a 10k-row
+# seed never touches the host filesystem or git.
 
 name: salary-management
 
@@ -29,6 +27,27 @@ services:
     stdin_open: true
     tty: true
 
+  web:
+    image: node:22-slim
+    working_dir: /app
+    volumes:
+      - ./web:/app
+      # Shadows the bind mount. node_modules holds platform-specific
+      # binaries, and resolving tens of thousands of small files across a
+      # macOS bind mount is slow enough to be worth avoiding.
+      - node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      # Vite proxies /api to the api service by name. The proxy runs
+      # server-side, so the browser only ever sees localhost:5173 — same
+      # origin, no CORS, and no SameSite cookie problem.
+      VITE_API_PROXY_TARGET: http://api:3000
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - api
+
 volumes:
   bundle:
   sqlite:
+  node_modules:
