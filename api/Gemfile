@@ -34,6 +34,16 @@ gem "thruster", require: false
 # See docs/decisions.md 6.
 # gem "rack-cors"
 
+# Pinned. json 3.0 made JSON.parse's options keyword-only:
+#
+#   def parse(source, on_load: nil, object_class: nil, array_class: nil, **options)
+#
+# Rails 8.1 still passes a positional options hash when deserializing a json
+# column, so every read of audit_events.metadata raises ArgumentError
+# "wrong number of arguments (given 2, expected 1)". Unpin once Rails ships
+# a release that calls it with keywords.
+gem "json", "~> 2.9"
+
 # Serialization. Chosen over jbuilder because resources are plain classes,
 # which are faster to test than templates.
 gem "alba"

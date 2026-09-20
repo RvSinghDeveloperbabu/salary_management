@@ -10,7 +10,19 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_20_103607) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_20_105349) do
+  create_table "audit_events", force: :cascade do |t|
+    t.string "action", null: false
+    t.bigint "actor_id"
+    t.datetime "created_at", null: false
+    t.json "metadata"
+    t.bigint "subject_id", null: false
+    t.string "subject_type", null: false
+    t.index ["actor_id"], name: "index_audit_events_on_actor_id"
+    t.index ["created_at"], name: "index_audit_events_on_created_at"
+    t.index ["subject_type", "subject_id"], name: "index_audit_events_on_subject_type_and_subject_id"
+  end
+
   create_table "departments", force: :cascade do |t|
     t.string "cost_centre", null: false
     t.datetime "created_at", null: false
