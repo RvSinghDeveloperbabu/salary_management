@@ -49,6 +49,31 @@ export function formatDate(iso: string | null | undefined): string {
   });
 }
 
+/**
+ * Parses what someone typed into integer cents. Returns null if it is not
+ * a valid amount.
+ *
+ * Deliberately not `parseFloat(input) * 100`. That is the classic way to
+ * lose a penny: 19.99 * 100 is 1998.9999999999998 in binary floating point,
+ * which truncates to 1998 — one cent short, silently, on exactly the values
+ * people type most. Splitting the string and doing integer arithmetic
+ * cannot drift.
+ */
+export function parseAmountToCents(input: string): number | null {
+  const cleaned = input.trim().replace(/[\s,]/g, "");
+
+  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+
+  const [whole, fraction = ""] = cleaned.split(".");
+
+  return Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+}
+
+/** Integer cents back into an editable string: 1_234_500 -> "12345.00" */
+export function centsToInput(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
 /** "market_adjustment" -> "Market adjustment" */
 export function humanise(value: string | null | undefined): string {
   if (!value) return "—";
