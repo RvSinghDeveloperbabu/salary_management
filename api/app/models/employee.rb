@@ -42,10 +42,14 @@ class Employee < ApplicationRecord
   scope :in_country, ->(code) { where(country_code: code.to_s.upcase) }
   scope :at_level, ->(id) { where(job_level_id: id) }
 
-  # Loads everything the directory row and the detail header need. Used by
-  # Queries::EmployeeSearch so a 50-row page stays at a handful of queries
-  # rather than one per row (CLAUDE.md non-negotiable 5).
-  scope :with_directory_associations, -> { includes(:department, :job_level, :current_salary) }
+  # Loads everything a directory row needs in 4 queries rather than 200
+  # (CLAUDE.md non-negotiable 5).
+  #
+  # preload rather than includes: includes may silently switch to a single
+  # LEFT JOIN when the relation references a joined table, which then
+  # collides with the explicit left_joins EmployeeSearch adds for sorting.
+  # preload always uses separate queries, so the two never interfere.
+  scope :with_directory_associations, -> { preload(:department, :job_level, :current_salary) }
 
   def full_name
     "#{first_name} #{last_name}"
