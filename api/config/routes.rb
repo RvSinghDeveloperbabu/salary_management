@@ -7,6 +7,10 @@ Rails.application.routes.draw do
       resource :me, only: %i[show], controller: :me
       resource :reference, only: %i[show], controller: :reference
 
+      # Flat rather than a resource: these are questions, not records.
+      get "analytics/overview", to: "analytics#overview"
+      get "analytics/distribution", to: "analytics#distribution"
+
       resources :employees, only: %i[index show create update] do
         # Nested, because a salary has no meaning apart from its employee
         # and nothing lists or edits salaries directly. Append-only, so
