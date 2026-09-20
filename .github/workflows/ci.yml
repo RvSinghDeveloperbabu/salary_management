@@ -1,0 +1,87 @@
+# Lives at the repository root because GitHub only reads workflows from
+# .github/workflows/ at the root. Rails generated this under api/, where it
+# would have been silently ignored.
+#
+# Every job sets working-directory: api, since the Rails application is one
+# level down. The web/ test job is added in build-plan phase 7.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+defaults:
+  run:
+    working-directory: api
+
+jobs:
+  test:
+    name: Specs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          working-directory: api
+          bundler-cache: true
+
+      - name: Prepare the test database
+        run: bin/rails db:test:prepare
+        env:
+          RAILS_ENV: test
+
+      - name: Run specs
+        # COVERAGE switches on the SimpleCov 80% floor. It is deliberately
+        # off for local runs; see spec/spec_helper.rb.
+        run: bundle exec rspec
+        env:
+          RAILS_ENV: test
+          COVERAGE: "true"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: api/coverage/
+          if-no-files-found: ignore
+
+  lint:
+    name: RuboCop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          working-directory: api
+          bundler-cache: true
+
+      - name: Lint code for consistent style
+        run: bundle exec rubocop -f github
+
+  security:
+    name: Brakeman and bundler-audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          working-directory: api
+          bundler-cache: true
+
+      - name: Scan for Rails security vulnerabilities
+        run: bundle exec brakeman --no-pager
+
+      - name: Scan for known vulnerable gems
+        run: bundle exec bundler-audit check --update
