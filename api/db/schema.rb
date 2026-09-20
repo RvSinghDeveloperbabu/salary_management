@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_20_102643) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_20_103348) do
   create_table "departments", force: :cascade do |t|
     t.string "cost_centre", null: false
     t.datetime "created_at", null: false
@@ -18,6 +18,36 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_20_102643) do
     t.datetime "updated_at", null: false
     t.index ["cost_centre"], name: "index_departments_on_cost_centre", unique: true
     t.index ["name"], name: "index_departments_on_name", unique: true
+  end
+
+  create_table "employees", force: :cascade do |t|
+    t.string "country_code", limit: 2, null: false
+    t.datetime "created_at", null: false
+    t.integer "department_id", null: false
+    t.string "email", null: false
+    t.string "employee_code", null: false
+    t.string "employment_type", null: false
+    t.string "first_name", null: false
+    t.date "hired_on", null: false
+    t.integer "job_level_id", null: false
+    t.string "last_name", null: false
+    t.integer "manager_id"
+    t.string "status", default: "active", null: false
+    t.date "terminated_on"
+    t.datetime "updated_at", null: false
+    t.index ["country_code"], name: "index_employees_on_country_code"
+    t.index ["department_id"], name: "index_employees_on_department_id"
+    t.index ["email"], name: "index_employees_on_email", unique: true
+    t.index ["employee_code"], name: "index_employees_on_employee_code", unique: true
+    t.index ["job_level_id"], name: "index_employees_on_job_level_id"
+    t.index ["last_name", "first_name"], name: "index_employees_on_last_name_and_first_name"
+    t.index ["manager_id"], name: "index_employees_on_manager_id"
+    t.index ["status", "department_id"], name: "index_employees_on_status_and_department_id"
+    t.index ["status"], name: "index_employees_on_status"
+    t.check_constraint "(status = 'terminated' AND terminated_on IS NOT NULL) OR (status = 'active' AND terminated_on IS NULL)", name: "employees_status_matches_termination_date"
+    t.check_constraint "employment_type IN ('full_time', 'part_time', 'contract')", name: "employees_known_employment_type"
+    t.check_constraint "status IN ('active', 'terminated')", name: "employees_known_status"
+    t.check_constraint "terminated_on IS NULL OR terminated_on >= hired_on", name: "employees_termination_after_hire"
   end
 
   create_table "exchange_rates", force: :cascade do |t|
@@ -55,5 +85,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_20_102643) do
     t.check_constraint "min_cents > 0", name: "pay_bands_positive_minimum"
   end
 
+  add_foreign_key "employees", "departments"
+  add_foreign_key "employees", "employees", column: "manager_id"
+  add_foreign_key "employees", "job_levels"
   add_foreign_key "pay_bands", "job_levels"
 end

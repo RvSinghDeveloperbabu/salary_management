@@ -9,12 +9,12 @@ SimpleCov.start "rails" do
 
   # Generated or trivial code. Measuring it inflates the number without
   # telling anyone anything.
-  add_filter "/spec/"
-  add_filter "/config/"
-  add_filter "/db/"
-  add_filter "app/channels/"
-  add_filter "app/jobs/"
-  add_filter "app/mailers/"
+  skip "/spec/"
+  skip "/config/"
+  skip "/db/"
+  skip "app/channels/"
+  skip "app/jobs/"
+  skip "app/mailers/"
 
   # Mirrors the layout in CLAUDE.md "Code structure".
   group "Queries",     "app/queries"

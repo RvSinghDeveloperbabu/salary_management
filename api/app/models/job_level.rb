@@ -1,5 +1,6 @@
 class JobLevel < ApplicationRecord
   has_many :pay_bands, dependent: :destroy
+  has_many :employees, dependent: :restrict_with_error
 
   normalizes :name, with: ->(value) { value.strip.upcase }
 
