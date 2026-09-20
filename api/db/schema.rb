@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_20_103348) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_20_103607) do
   create_table "departments", force: :cascade do |t|
     t.string "cost_centre", null: false
     t.datetime "created_at", null: false
@@ -23,6 +23,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_20_103348) do
   create_table "employees", force: :cascade do |t|
     t.string "country_code", limit: 2, null: false
     t.datetime "created_at", null: false
+    t.integer "current_salary_id"
     t.integer "department_id", null: false
     t.string "email", null: false
     t.string "employee_code", null: false
@@ -36,6 +37,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_20_103348) do
     t.date "terminated_on"
     t.datetime "updated_at", null: false
     t.index ["country_code"], name: "index_employees_on_country_code"
+    t.index ["current_salary_id"], name: "index_employees_on_current_salary_id"
     t.index ["department_id"], name: "index_employees_on_department_id"
     t.index ["email"], name: "index_employees_on_email", unique: true
     t.index ["employee_code"], name: "index_employees_on_employee_code", unique: true
@@ -85,8 +87,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_20_103348) do
     t.check_constraint "min_cents > 0", name: "pay_bands_positive_minimum"
   end
 
+  create_table "salaries", force: :cascade do |t|
+    t.bigint "amount_cents", null: false
+    t.string "change_reason", null: false
+    t.datetime "created_at", null: false
+    t.string "currency", limit: 3, null: false
+    t.date "effective_from", null: false
+    t.date "effective_to"
+    t.integer "employee_id", null: false
+    t.bigint "recorded_by_id"
+    t.datetime "updated_at", null: false
+    t.index ["employee_id", "effective_from"], name: "index_salaries_on_employee_id_and_effective_from", unique: true
+    t.index ["employee_id"], name: "index_salaries_on_employee_id"
+    t.index ["recorded_by_id"], name: "index_salaries_on_recorded_by_id"
+    t.index ["updated_at"], name: "index_salaries_on_updated_at"
+    t.check_constraint "amount_cents > 0", name: "salaries_positive_amount"
+    t.check_constraint "change_reason IN ('hire', 'merit', 'promotion', 'market_adjustment', 'correction')", name: "salaries_known_change_reason"
+    t.check_constraint "effective_to IS NULL OR effective_to >= effective_from", name: "salaries_period_ordered"
+  end
+
   add_foreign_key "employees", "departments"
   add_foreign_key "employees", "employees", column: "manager_id"
   add_foreign_key "employees", "job_levels"
+  add_foreign_key "employees", "salaries", column: "current_salary_id"
   add_foreign_key "pay_bands", "job_levels"
+  add_foreign_key "salaries", "employees"
 end

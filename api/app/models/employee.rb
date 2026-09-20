@@ -9,6 +9,13 @@ class Employee < ApplicationRecord
   has_many :reports, class_name: "Employee", foreign_key: :manager_id, dependent: :nullify,
     inverse_of: :manager
 
+  has_many :salaries, dependent: :destroy
+
+  # Denormalised pointer, maintained only by Salaries::RecordChange. Turns
+  # "current pay for everyone" from a correlated subquery per row into a
+  # single join. See docs/decisions.md 1.
+  belongs_to :current_salary, class_name: "Salary", optional: true
+
   enum :employment_type, EMPLOYMENT_TYPES.index_by(&:itself), validate: true
   enum :status, STATUSES.index_by(&:itself), validate: true
 
@@ -38,7 +45,7 @@ class Employee < ApplicationRecord
   # Loads everything the directory row and the detail header need. Used by
   # Queries::EmployeeSearch so a 50-row page stays at a handful of queries
   # rather than one per row (CLAUDE.md non-negotiable 5).
-  scope :with_directory_associations, -> { includes(:department, :job_level) }
+  scope :with_directory_associations, -> { includes(:department, :job_level, :current_salary) }
 
   def full_name
     "#{first_name} #{last_name}"
