@@ -9,7 +9,10 @@ class Employee < ApplicationRecord
   has_many :reports, class_name: "Employee", foreign_key: :manager_id, dependent: :nullify,
     inverse_of: :manager
 
-  has_many :salaries, dependent: :destroy
+  # Newest first. Anyone opening a salary history wants the current figure
+  # at the top, and ordering here means preload sorts in SQL rather than
+  # the serializer re-querying per employee.
+  has_many :salaries, -> { order(effective_from: :desc) }, dependent: :destroy, inverse_of: :employee
 
   # Denormalised pointer, maintained only by Salaries::RecordChange. Turns
   # "current pay for everyone" from a correlated subquery per row into a
@@ -22,6 +25,11 @@ class Employee < ApplicationRecord
   normalizes :email, with: ->(value) { value.strip.downcase }
   normalizes :country_code, with: ->(value) { value.strip.upcase }
   normalizes :employee_code, with: ->(value) { value.strip.upcase }
+
+  # Assigned by the system, never by the client. It is the identifier other
+  # systems quote, so letting a request choose it invites collisions and
+  # letting a request change it silently repoints every external reference.
+  before_validation :assign_employee_code, on: :create
 
   validates :employee_code, presence: true, uniqueness: { case_sensitive: false }
   validates :first_name, :last_name, presence: true
@@ -62,6 +70,17 @@ class Employee < ApplicationRecord
   end
 
   private
+
+  # Codes are zero-padded, so the lexical maximum is also the numeric one.
+  # The unique index is the real guarantee: this only has to be right
+  # often enough to avoid a retry, not to be atomic.
+  def assign_employee_code
+    return if employee_code.present?
+
+    highest = Employee.maximum(:employee_code).to_s[/\d+/].to_i
+
+    self.employee_code = format("EMP-%05d", highest + 1)
+  end
 
   def termination_must_follow_hire
     return if terminated_on.blank? || hired_on.blank?

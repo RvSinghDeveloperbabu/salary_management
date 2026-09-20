@@ -15,7 +15,6 @@ RSpec.describe Employee do
   end
 
   describe "validations" do
-    it { is_expected.to validate_presence_of(:employee_code) }
     it { is_expected.to validate_presence_of(:first_name) }
     it { is_expected.to validate_presence_of(:last_name) }
     it { is_expected.to validate_presence_of(:hired_on) }
@@ -25,6 +24,37 @@ RSpec.describe Employee do
 
     it "rejects a malformed email address" do
       expect(build(:employee, email: "not-an-address")).not_to be_valid
+    end
+  end
+
+  # Assigned by the system, not the client: it is the identifier other
+  # systems quote, so a request must not be able to choose or change it.
+  describe "employee_code assignment" do
+    it "assigns a code on create when none is given" do
+      employee = described_class.create!(
+        first_name: "Ada", last_name: "Lovelace", email: "ada@example.com",
+        country_code: "US", department: create(:department), job_level: create(:job_level),
+        employment_type: "full_time", status: "active", hired_on: 1.year.ago.to_date
+      )
+
+      expect(employee.employee_code).to match(/\AEMP-\d{5}\z/)
+    end
+
+    it "increments past the highest existing code" do
+      create(:employee, employee_code: "EMP-00041")
+
+      expect(create(:employee, employee_code: nil).employee_code).to eq("EMP-00042")
+    end
+
+    it "keeps an explicitly supplied code, so seeds stay reproducible" do
+      expect(create(:employee, employee_code: "EMP-99999").employee_code).to eq("EMP-99999")
+    end
+
+    it "is still refused by the database if somehow left blank" do
+      employee = build(:employee, employee_code: nil)
+      employee.define_singleton_method(:assign_employee_code) { nil }
+
+      expect { employee.save!(validate: false) }.to raise_error(ActiveRecord::NotNullViolation)
     end
   end
 

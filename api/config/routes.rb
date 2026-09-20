@@ -5,6 +5,8 @@ Rails.application.routes.draw do
     namespace :v1 do
       resource :session, only: %i[create destroy]
       resource :me, only: %i[show], controller: :me
+
+      resources :employees, only: %i[index show create update]
     end
   end
 
