@@ -1,10 +1,21 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
-import { afterEach, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, vi } from "vitest";
+import { server } from "./server";
+
+// onUnhandledRequest: "error" makes a request nobody mocked fail loudly.
+// Without it, a typo in a URL returns undefined and the test fails much
+// later with a confusing message about reading a property of null.
+beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 
 afterEach(() => {
   cleanup();
+  // Drops any per-test handler overrides, so one test cannot leak its
+  // mocked responses into the next.
+  server.resetHandlers();
 });
+
+afterAll(() => server.close());
 
 // Mantine components query these at render time and jsdom implements
 // neither. Without the stubs, anything using a Mantine layout primitive
