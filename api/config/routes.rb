@@ -5,6 +5,7 @@ Rails.application.routes.draw do
     namespace :v1 do
       resource :session, only: %i[create destroy]
       resource :me, only: %i[show], controller: :me
+      resource :reference, only: %i[show], controller: :reference
 
       resources :employees, only: %i[index show create update] do
         # Nested, because a salary has no meaning apart from its employee
