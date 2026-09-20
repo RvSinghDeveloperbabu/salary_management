@@ -49,18 +49,24 @@ class BandOutliers
       below = []
       above = []
       stale = []
-      cutoff = Date.current << STALE_MONTHS
+      # Compared as an ISO-8601 string against the stored value. See #rows.
+      cutoff = (Date.current << STALE_MONTHS).to_s
+
+      amount_at = IDX[:amount_cents]
+      min_at = IDX[:band_min_cents]
+      max_at = IDX[:band_max_cents]
+      from_at = IDX[:effective_from]
 
       rows.each do |row|
         # Test against the raw row before building anything. Most people
         # are paid correctly, so constructing a Finding for all 9,000-odd
         # of them to discard 98% is most of the work this query does.
-        amount = row[:amount_cents]
-        min = row[:band_min_cents]
+        amount = row[amount_at]
+        min = row[min_at]
 
         is_below = min && amount < min
-        is_above = min && amount > row[:band_max_cents]
-        is_stale = row[:effective_from] <= cutoff
+        is_above = min && amount > row[max_at]
+        is_stale = row[from_at].to_s <= cutoff
 
         next unless is_below || is_above || is_stale
 
@@ -98,11 +104,16 @@ class BandOutliers
     band_max_cents: "pay_bands.max_cents"
   }.freeze
 
-  def rows
-    keys = COLUMNS.keys
+  # Positions within a plucked row, so the hot loop can index directly.
+  # Building a Hash per row allocated 9,000 of them to inspect three fields.
+  IDX = COLUMNS.keys.each_with_index.to_h.freeze
 
-    scope.pluck(*COLUMNS.values.map { |column| Arel.sql(column) })
-         .map { |values| keys.zip(values).to_h }
+  # select_rows rather than pluck, for the same reason as PayrollTimeline:
+  # pluck type-casts every value, and this scans every active employee to
+  # find the few percent worth reporting. effective_from comes back as an
+  # ISO-8601 string, where lexicographic order is chronological order.
+  def rows
+    Employee.connection.select_rows(scope.select(*COLUMNS.values).to_sql)
   end
 
   # LEFT JOIN on pay_bands, not INNER: an employee in a country with no
@@ -132,24 +143,27 @@ class BandOutliers
   end
 
   def build_finding(row)
-    amount = row[:amount_cents]
-    mid = row[:band_mid_cents]
-    min = row[:band_min_cents]
-    max = row[:band_max_cents]
-    rate_ppm = rates[row[:currency]]
+    values = IDX.transform_values { |index| row[index] }
+
+    amount = values[:amount_cents]
+    mid = values[:band_mid_cents]
+    min = values[:band_min_cents]
+    max = values[:band_max_cents]
+    rate_ppm = rates[values[:currency]]
+    effective_from = values[:effective_from].to_date
 
     Finding.new(
-      employee_id: row[:employee_id],
-      employee_code: row[:employee_code],
-      full_name: "#{row[:first_name]} #{row[:last_name]}",
-      department: row[:department],
-      job_level: row[:job_level],
-      country_code: row[:country_code],
+      employee_id: values[:employee_id],
+      employee_code: values[:employee_code],
+      full_name: "#{values[:first_name]} #{values[:last_name]}",
+      department: values[:department],
+      job_level: values[:job_level],
+      country_code: values[:country_code],
       amount_cents: amount,
-      currency: row[:currency],
+      currency: values[:currency],
       amount_base_cents: rate_ppm && Rates.convert(amount, rate_ppm),
-      effective_from: row[:effective_from],
-      months_since_change: months_between(row[:effective_from], Date.current),
+      effective_from: effective_from,
+      months_since_change: months_between(effective_from, Date.current),
       band_min_cents: min,
       band_mid_cents: mid,
       band_max_cents: max,

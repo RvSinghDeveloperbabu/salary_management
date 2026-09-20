@@ -102,10 +102,23 @@ class EmployeeSearch
     # each query, so page 2 may repeat or skip a row that page 1 already
     # showed. Offset pagination is only correct over a total order.
     if sort == "salary"
-      scope.joins(exchange_rate_join).order(Arel.sql("#{SALARY_IN_BASE} #{direction}"), id: :asc)
+      scope.joins(exchange_rate_join).order(directed(SALARY_IN_BASE), id: :asc)
     else
-      scope.order(Arel.sql("#{SORTABLE.fetch(sort)} #{direction}"), id: :asc)
+      scope.order(directed(SORTABLE.fetch(sort)), id: :asc)
     end
+  end
+
+  # Builds the ordering through Arel's own asc/desc nodes rather than
+  # interpolating the direction into a SQL string.
+  #
+  # `direction` is already allow-listed, so interpolation would in fact be
+  # safe — but it reads as string-built SQL, which means every future
+  # reader (and every static analyser) has to go and verify the allow-list
+  # to know that. Expressing it as an Arel node removes the question.
+  def directed(column)
+    literal = Arel.sql(column)
+
+    direction == "desc" ? literal.desc : literal.asc
   end
 
   # LEFT JOIN, not INNER: an employee whose currency has no seeded rate

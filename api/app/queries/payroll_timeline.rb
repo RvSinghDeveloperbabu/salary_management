@@ -21,18 +21,33 @@ class PayrollTimeline
 
   def call
     boundaries = month_boundaries
+    # Compared as ISO-8601 strings against the stored values. See histories.
+    keys = boundaries.map(&:to_s)
     totals = Array.new(boundaries.size, 0)
     counts = Array.new(boundaries.size, 0)
 
+    # Both the boundaries and each employee's rows are in ascending date
+    # order, so the two can be walked together with a cursor that only ever
+    # moves forward. Re-scanning an employee's history for every boundary
+    # is O(employees x months x rows); this is O(employees x (months + rows)).
     histories.each_value do |rows|
-      boundaries.each_with_index do |boundary, index|
-        row = effective_at(rows, boundary)
-        next if row.nil?
+      cursor = 0
+      active = nil
 
-        cents = convert(row[2], row[3])
-        next if cents.nil?
+      keys.each_with_index do |boundary, index|
+        while cursor < rows.length && rows[cursor][FROM] <= boundary
+          active = rows[cursor]
+          cursor += 1
+        end
 
-        totals[index] += cents
+        next if active.nil?
+
+        # The person may have left: the last row they held is closed before
+        # this boundary.
+        closed_on = active[TO]
+        next if closed_on && closed_on < boundary
+
+        totals[index] += active[BASE_CENTS]
         counts[index] += 1
       end
     end
@@ -63,31 +78,52 @@ class PayrollTimeline
       .reverse
   end
 
-  # { employee_id => [[from, to, cents, currency], ...] }, each sorted
-  # oldest first.
+  # Positions within a history row. Plain indices rather than a Hash or a
+  # Struct per row: at 30,000 rows the allocation is most of the work.
+  FROM = 0
+  TO = 1
+  BASE_CENTS = 2
+
+  # { employee_id => [[from, to, base_cents], ...] }, each sorted oldest
+  # first.
+  #
+  # Currency conversion happens once per row here, not once per row per
+  # boundary. A row active across all 24 months would otherwise be
+  # converted 24 times to the same value.
   def histories
     @histories ||= begin
-      rows = scope.pluck(
-        "salaries.employee_id",
-        "salaries.effective_from",
-        "salaries.effective_to",
-        "salaries.amount_cents",
-        "salaries.currency"
-      )
+      grouped = Hash.new { |hash, key| hash[key] = [] }
 
-      rows.group_by(&:first).transform_values do |employee_rows|
-        employee_rows.map { |row| row.drop(1) }.sort_by!(&:first)
+      # select_rows rather than pluck: pluck type-casts every value, which
+      # at 30,000 rows means 60,000 Date objects built only to be compared
+      # once. Dates are compared as ISO-8601 strings instead, where
+      # lexicographic order is chronological order.
+      #
+      # to_s keeps this adapter-independent: SQLite hands back strings
+      # already, and on an adapter that returns Date objects it normalises
+      # them to the same form rather than mixing types in a comparison.
+      raw_rows.each do |employee_id, from, to, cents, currency|
+        base = convert(cents, currency)
+        next if base.nil?
+
+        grouped[employee_id] << [ from.to_s, to&.to_s, base ]
       end
+
+      grouped.each_value { |employee_rows| employee_rows.sort_by!(&:first) }
+      grouped
     end
   end
 
-  # The row covering a boundary, or nil where the person was not employed
-  # then. Searched newest first because later boundaries are usually served
-  # by later rows.
-  def effective_at(rows, boundary)
-    rows.reverse_each.find do |from, to, _cents, _currency|
-      from <= boundary && (to.nil? || to >= boundary)
-    end
+  def raw_rows
+    sql = scope.select(
+      "salaries.employee_id",
+      "salaries.effective_from",
+      "salaries.effective_to",
+      "salaries.amount_cents",
+      "salaries.currency"
+    ).to_sql
+
+    Salary.connection.select_rows(sql)
   end
 
   # Every salary row, current and historical, for the filtered population.

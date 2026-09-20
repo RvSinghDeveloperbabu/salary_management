@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_20_111302) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_20_141526) do
   create_table "audit_events", force: :cascade do |t|
     t.string "action", null: false
     t.bigint "actor_id"
@@ -58,6 +58,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_20_111302) do
     t.index ["manager_id"], name: "index_employees_on_manager_id"
     t.index ["status", "department_id"], name: "index_employees_on_status_and_department_id"
     t.index ["status"], name: "index_employees_on_status"
+    t.index ["updated_at"], name: "index_employees_on_updated_at"
     t.check_constraint "(status = 'terminated' AND terminated_on IS NOT NULL) OR (status = 'active' AND terminated_on IS NULL)", name: "employees_status_matches_termination_date"
     t.check_constraint "employment_type IN ('full_time', 'part_time', 'contract')", name: "employees_known_employment_type"
     t.check_constraint "status IN ('active', 'terminated')", name: "employees_known_status"

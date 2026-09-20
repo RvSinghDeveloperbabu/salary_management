@@ -5,13 +5,56 @@ module Api
     # CLAUDE.md is explicit that this is the differentiator: a CRUD table is
     # the baseline, and being able to answer "how does the organisation pay
     # people" is the product.
+    #
+    # Every response is cached against a data watermark rather than a clock.
+    # See AnalyticsCaching.
     class AnalyticsController < BaseController
+      include AnalyticsCaching
+
       # Question 1: what do we spend in total, and how does it split?
       def overview
+        render json: cached_analytics("overview", **cache_filters) { build_overview }
+      end
+
+      # Questions 2 and 6: the median and spread at each level, and how the
+      # same level differs between departments.
+      def distribution
+        group_by = params[:group_by].presence || "department"
+
+        payload = cached_analytics("distribution", group_by: group_by, **cache_filters) do
+          build_distribution(group_by)
+        end
+
+        render json: payload
+      end
+
+      # Question 4: how has total payroll moved over the last 24 months?
+      #
+      # Converted at a single fixed rate, so the line shows compensation
+      # decisions rather than currency movement. See docs/decisions.md 5.
+      def payroll_trend
+        months = params[:months] || PayrollTimeline::DEFAULT_MONTHS
+
+        payload = cached_analytics("payroll_trend", months: months, **cache_filters) do
+          build_payroll_trend(months)
+        end
+
+        render json: payload
+      end
+
+      # Questions 3 and 5: who is paid outside their band, and who has not
+      # had a change in over 18 months.
+      def outliers
+        render json: cached_analytics("outliers", **cache_filters) { build_outliers }
+      end
+
+      private
+
+      def build_overview
         snapshot = CompensationSnapshot.new(filters)
         summary = Stats::Distribution.of(snapshot.amounts)
 
-        render json: {
+        {
           currency: Rates::BASE_CURRENCY,
           as_of: Rates::SNAPSHOT_DATE,
           headcount: snapshot.headcount,
@@ -25,47 +68,31 @@ module Api
         }
       end
 
-      # Questions 2 and 6: the median and spread at each level, and how the
-      # same level differs between departments.
-      def distribution
-        group_by = params[:group_by].presence || "department"
+      def build_distribution(group_by)
         snapshot = CompensationSnapshot.new(filters)
 
-        groups = snapshot.grouped_amounts(group_by).map do |label, amounts|
-          Stats::Distribution.of(amounts).to_h.merge(group: label)
-        end
-
-        render json: {
+        {
           currency: Rates::BASE_CURRENCY,
           as_of: Rates::SNAPSHOT_DATE,
           group_by: group_by,
-          groups: groups
+          groups: snapshot.grouped_amounts(group_by).map do |label, amounts|
+            Stats::Distribution.of(amounts).to_h.merge(group: label)
+          end
         }
       end
 
-      # Question 4: how has total payroll moved over the last 24 months?
-      #
-      # Converted at a single fixed rate, so the line shows compensation
-      # decisions rather than currency movement. See docs/decisions.md 5.
-      def payroll_trend
-        points = PayrollTimeline.new(
-          months: params[:months] || PayrollTimeline::DEFAULT_MONTHS,
-          filters: filters
-        ).call
-
-        render json: {
+      def build_payroll_trend(months)
+        {
           currency: Rates::BASE_CURRENCY,
           as_of: Rates::SNAPSHOT_DATE,
-          points: points.map(&:to_h)
+          points: PayrollTimeline.new(months: months, filters: filters).call.map(&:to_h)
         }
       end
 
-      # Questions 3 and 5: who is paid outside their band, and who has not
-      # had a change in over 18 months.
-      def outliers
+      def build_outliers
         findings = BandOutliers.new(filters)
 
-        render json: {
+        {
           currency_note: "Amounts are in local currency; bands are defined per country.",
           stale_after_months: BandOutliers::STALE_MONTHS,
           below_band: findings.below_band.map(&:to_h),
@@ -79,10 +106,14 @@ module Api
         }
       end
 
-      private
-
       def filters
         params.permit(:department_id, :job_level_id, :country_code, :status)
+      end
+
+      # The filters, as plain symbols, so two requests differing only in
+      # filter do not share a cache entry.
+      def cache_filters
+        filters.to_h.symbolize_keys
       end
 
       # Totals and medians per group. Enough for a bar chart without a
