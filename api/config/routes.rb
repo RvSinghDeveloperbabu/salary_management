@@ -10,6 +10,7 @@ Rails.application.routes.draw do
       # Flat rather than a resource: these are questions, not records.
       get "analytics/overview", to: "analytics#overview"
       get "analytics/distribution", to: "analytics#distribution"
+      get "analytics/payroll_trend", to: "analytics#payroll_trend"
 
       resources :employees, only: %i[index show create update] do
         # Nested, because a salary has no meaning apart from its employee

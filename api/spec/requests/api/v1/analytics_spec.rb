@@ -29,6 +29,71 @@ RSpec.describe "Api::V1::Analytics" do
       get "/api/v1/analytics/distribution"
       expect(response).to have_http_status(:unauthorized)
     end
+
+    it "refuses the payroll trend" do
+      get "/api/v1/analytics/payroll_trend"
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
+
+  describe "GET /api/v1/analytics/payroll_trend" do
+    before { sign_in }
+
+    # Clock frozen at 2026-06-15.
+    before do
+      employee = create(:employee, hired_on: Date.new(2024, 1, 1))
+      create(:salary, employee: employee, amount_cents: 10_000_000, currency: "USD",
+        effective_from: Date.new(2024, 1, 1), effective_to: Date.new(2026, 5, 31),
+        change_reason: "hire")
+      create(:salary, employee: employee, amount_cents: 12_000_000, currency: "USD",
+        effective_from: Date.new(2026, 6, 1), change_reason: "merit")
+    end
+
+    it "returns 24 months by default" do
+      get "/api/v1/analytics/payroll_trend"
+
+      expect(response).to have_http_status(:ok)
+      expect(json["points"].size).to eq(24)
+    end
+
+    it "honours an explicit month count" do
+      get "/api/v1/analytics/payroll_trend", params: { months: 3 }
+
+      expect(json["points"].map { |p| p["month"] }).to eq([ "2026-04", "2026-05", "2026-06" ])
+    end
+
+    it "reflects a raise in the month it took effect" do
+      get "/api/v1/analytics/payroll_trend", params: { months: 3 }
+
+      totals = json["points"].to_h { |p| [ p["month"], p["total_cents"] ] }
+      expect(totals["2026-05"]).to eq(10_000_000)
+      expect(totals["2026-06"]).to eq(12_000_000)
+    end
+
+    it "reports headcount alongside the total" do
+      get "/api/v1/analytics/payroll_trend", params: { months: 1 }
+
+      expect(json["points"].first["headcount"]).to eq(1)
+    end
+
+    it "states the currency and fixed conversion date" do
+      get "/api/v1/analytics/payroll_trend"
+
+      expect(json["currency"]).to eq("USD")
+      expect(json["as_of"]).to eq(Rates::SNAPSHOT_DATE.to_s)
+    end
+
+    it "caps an absurd month count rather than doing the work" do
+      get "/api/v1/analytics/payroll_trend", params: { months: 100_000 }
+
+      expect(json["points"].size).to eq(PayrollTimeline::MAX_MONTHS)
+    end
+
+    it "returns integer cents" do
+      get "/api/v1/analytics/payroll_trend", params: { months: 1 }
+
+      expect(json["points"].first["total_cents"]).to be_an(Integer)
+    end
   end
 
   describe "GET /api/v1/analytics/overview" do

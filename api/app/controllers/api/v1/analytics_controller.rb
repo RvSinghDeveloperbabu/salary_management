@@ -43,6 +43,23 @@ module Api
         }
       end
 
+      # Question 4: how has total payroll moved over the last 24 months?
+      #
+      # Converted at a single fixed rate, so the line shows compensation
+      # decisions rather than currency movement. See docs/decisions.md 5.
+      def payroll_trend
+        points = PayrollTimeline.new(
+          months: params[:months] || PayrollTimeline::DEFAULT_MONTHS,
+          filters: filters
+        ).call
+
+        render json: {
+          currency: Rates::BASE_CURRENCY,
+          as_of: Rates::SNAPSHOT_DATE,
+          points: points.map(&:to_h)
+        }
+      end
+
       private
 
       def filters
