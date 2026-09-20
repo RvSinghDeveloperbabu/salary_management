@@ -199,6 +199,47 @@ RSpec.describe EmployeeSearch do
       expect(ordered.index(rich)).to be < ordered.index(poor)
     end
 
+    describe "sorting by salary across currencies" do
+      # Amounts are stored in local currency. Ordering on the raw integer
+      # would rank 2,400,000.00 INR (about 28,800 USD) above 100,000.00 USD
+      # and tell the HR manager the lowest-paid person is the highest.
+      let!(:american) { create(:employee, country_code: "US") }
+      let!(:indian) { create(:employee, :in_india) }
+
+      before do
+        create(:exchange_rate, :identity, rate_on: Rates::SNAPSHOT_DATE)
+        create(:exchange_rate, base_currency: "INR", quote_currency: "USD",
+          rate_ppm: 12_000, rate_on: Rates::SNAPSHOT_DATE)
+
+        Salaries::RecordChange.new(employee: american, amount_cents: 10_000_000,
+          currency: "USD", effective_from: 1.year.ago.to_date, change_reason: "hire").call
+        Salaries::RecordChange.new(employee: indian, amount_cents: 240_000_000,
+          currency: "INR", effective_from: 1.year.ago.to_date, change_reason: "hire").call
+      end
+
+      it "ranks the higher real salary first, not the larger integer" do
+        ordered = search(sort: "salary", direction: "desc").records.to_a
+
+        expect(ordered.index(american)).to be < ordered.index(indian)
+      end
+
+      it "ranks the lower real salary first when ascending" do
+        ordered = search(sort: "salary", direction: "asc").records.to_a
+
+        expect(ordered.index(indian)).to be < ordered.index(american)
+      end
+
+      # A currency with no seeded rate is a data gap to notice, not a reason
+      # to drop someone out of the directory entirely.
+      it "still returns an employee whose currency has no rate" do
+        orphan = create(:employee, country_code: "BR")
+        Salaries::RecordChange.new(employee: orphan, amount_cents: 50_000_000,
+          currency: "BRL", effective_from: 1.year.ago.to_date, change_reason: "hire").call
+
+        expect(search(sort: "salary").records).to include(orphan)
+      end
+    end
+
     # Offset pagination is only correct over a total order. Without a unique
     # tiebreaker, rows sharing a sort value can swap between queries, so a
     # row shown on page 1 can reappear or vanish on page 2.

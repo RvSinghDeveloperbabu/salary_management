@@ -24,6 +24,14 @@ class EmployeeSearch
     "level" => :job_level
   }.freeze
 
+  # Sorting by salary has to normalise first. Amounts are stored in local
+  # currency, so ordering on the raw integer ranks 2,400,000 INR above
+  # 100,000 USD — the directory would claim the lowest-paid people are the
+  # highest. Multiplying by the snapshot rate sorts on comparable value.
+  #
+  # The expression is built from constants, never from request parameters.
+  SALARY_IN_BASE = "salaries.amount_cents * exchange_rates.rate_ppm".freeze
+
   DIRECTIONS = %w[asc desc].freeze
 
   DEFAULT_SORT = "name"
@@ -93,7 +101,25 @@ class EmployeeSearch
     # rows with equal sort values can come back in a different order on
     # each query, so page 2 may repeat or skip a row that page 1 already
     # showed. Offset pagination is only correct over a total order.
-    scope.order(Arel.sql("#{SORTABLE.fetch(sort)} #{direction}"), id: :asc)
+    if sort == "salary"
+      scope.joins(exchange_rate_join).order(Arel.sql("#{SALARY_IN_BASE} #{direction}"), id: :asc)
+    else
+      scope.order(Arel.sql("#{SORTABLE.fetch(sort)} #{direction}"), id: :asc)
+    end
+  end
+
+  # LEFT JOIN, not INNER: an employee whose currency has no seeded rate
+  # should still appear in the directory, sorted last, rather than vanish
+  # from it. A missing salary figure is a data problem to see, not to hide.
+  def exchange_rate_join
+    connection = Employee.connection
+
+    <<~SQL.squish
+      LEFT JOIN exchange_rates
+        ON exchange_rates.base_currency = salaries.currency
+       AND exchange_rates.quote_currency = #{connection.quote(Rates::BASE_CURRENCY)}
+       AND exchange_rates.rate_on = #{connection.quote(Rates::SNAPSHOT_DATE)}
+    SQL
   end
 
   def sort
