@@ -6,7 +6,12 @@ Rails.application.routes.draw do
       resource :session, only: %i[create destroy]
       resource :me, only: %i[show], controller: :me
 
-      resources :employees, only: %i[index show create update]
+      resources :employees, only: %i[index show create update] do
+        # Nested, because a salary has no meaning apart from its employee
+        # and nothing lists or edits salaries directly. Append-only, so
+        # create is the entire interface.
+        resources :salaries, only: %i[create]
+      end
     end
   end
 

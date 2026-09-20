@@ -22,6 +22,9 @@ module Salaries
     # conversation than "record this raise".
     class OutOfOrder < Error; end
 
+    # Raised when effective_from is not a date at all.
+    class UnparseableDate < Error; end
+
     def initialize(employee:, amount_cents:, currency:, effective_from:, change_reason:,
                    recorded_by: nil)
       @employee = employee
@@ -60,8 +63,26 @@ module Salaries
 
     private
 
-    attr_reader :employee, :amount_cents, :currency, :effective_from, :change_reason,
-                :recorded_by
+    attr_reader :employee, :amount_cents, :currency, :change_reason, :recorded_by
+
+    # Coerced here rather than trusted from the caller. This is the single
+    # write path, reached from a controller (where the value is a param
+    # string), from the seeds and from specs (where it is already a Date).
+    # Comparing a String to a Date raises ArgumentError deep inside the
+    # ordering check, which would surface as a 500 for what is really
+    # malformed input.
+    def effective_from
+      @effective_from = case @effective_from
+      when Date then @effective_from
+      when Time, DateTime then @effective_from.to_date
+      else
+        begin
+          Date.parse(@effective_from.to_s)
+        rescue Date::Error
+          raise UnparseableDate, "effective_from #{@effective_from.inspect} is not a date"
+        end
+      end
+    end
 
     def current_open_salary
       employee.salaries.open_ended.order(effective_from: :desc).first
