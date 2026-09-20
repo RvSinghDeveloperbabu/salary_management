@@ -11,6 +11,7 @@ Rails.application.routes.draw do
       get "analytics/overview", to: "analytics#overview"
       get "analytics/distribution", to: "analytics#distribution"
       get "analytics/payroll_trend", to: "analytics#payroll_trend"
+      get "analytics/outliers", to: "analytics#outliers"
 
       resources :employees, only: %i[index show create update] do
         # Nested, because a salary has no meaning apart from its employee

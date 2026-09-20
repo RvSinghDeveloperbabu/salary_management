@@ -60,6 +60,25 @@ module Api
         }
       end
 
+      # Questions 3 and 5: who is paid outside their band, and who has not
+      # had a change in over 18 months.
+      def outliers
+        findings = BandOutliers.new(filters)
+
+        render json: {
+          currency_note: "Amounts are in local currency; bands are defined per country.",
+          stale_after_months: BandOutliers::STALE_MONTHS,
+          below_band: findings.below_band.map(&:to_h),
+          above_band: findings.above_band.map(&:to_h),
+          stale: findings.stale.map(&:to_h),
+          counts: {
+            below_band: findings.below_band.size,
+            above_band: findings.above_band.size,
+            stale: findings.stale.size
+          }
+        }
+      end
+
       private
 
       def filters
