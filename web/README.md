@@ -17,7 +17,6 @@ you can decide for yourself whether it earned its place.
 | React Router | Manual "which screen is showing" state | 4 things: `Routes`, `Route`, `Link`, `useParams` |
 | TanStack Query | `useEffect` + `useState` + loading/error flags | Mostly one hook: `useQuery` |
 | Mantine | Hand-written CSS for buttons, inputs, layout | Components only — `<Button>`, `<Table>`, `<Select>` |
-| TanStack Table | Manual sort/paginate logic in the table component | One hook: `useReactTable` |
 | Recharts | Drawing SVG charts by hand | `<LineChart>`, `<BarChart>` and their parts |
 | Vitest + RTL | — (this is the test runner) | `render`, `screen`, `expect` |
 | MSW | Stubbing `fetch` in tests | `http.get(...)` handlers |
@@ -113,22 +112,29 @@ to supply the theme; everything after that is ordinary components.
 
 ---
 
-## 4. TanStack Table — table logic, not table markup
+## 4. The table is plain React (no table library)
 
-**Problem it solves.** Column definitions, sort state and pagination state
-otherwise get hand-written into the component and tangled with the markup.
+The original plan included TanStack Table. It was removed, and it is worth
+saying why, because "we used fewer libraries" is a decision like any other.
 
-**Important:** it renders nothing. It is a hook that hands you rows and
-headers; we still write the `<table>` markup ourselves.
+A table library earns its place when the table does work: sorting rows,
+filtering them, paginating them in the browser. Here the Rails API does all
+three. The component only needs to draw rows it was handed and report which
+column header was clicked.
+
+So the directory is an array of column definitions and a `.map()`:
 
 ```tsx
-const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
-
-table.getRowModel().rows.map((row) => /* your own <tr> */);
+{employees.map((employee) => (
+  <Table.Tr key={employee.id}>
+    <Table.Td>{employee.full_name}</Table.Td>
+    …
+  </Table.Tr>
+))}
 ```
 
-Sorting and pagination here are **server-side** — the Rails API does the
-work, and the table just reports which column was clicked.
+That is less code than the library version, and there is no second API to
+learn to follow it.
 
 ---
 
