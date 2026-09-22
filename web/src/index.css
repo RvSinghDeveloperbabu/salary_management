@@ -1,5 +1,5 @@
 /* Mantine supplies component styling. This file holds only the few
-   app-wide rules it does not cover. */
+   app-wide rules it does not cover, plus the chart palette. */
 
 :root {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -10,9 +10,62 @@ body {
   margin: 0;
 }
 
-/* Numeric columns line up only with tabular figures: without this, a 1 is
+/* Numeric columns line up only with tabular figures: without this a 1 is
    narrower than a 7 and columns of money look ragged. */
 .numeric {
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+/* ---------------------------------------------------------------------------
+   Chart palette.
+
+   Defined as tokens rather than hex literals in the components, so the
+   light and dark values swap in one place and chart code is written
+   against roles. These specific steps were run through a contrast and
+   colour-vision-deficiency validator rather than picked by eye.
+   --------------------------------------------------------------------------- */
+.viz-root {
+  color-scheme: light;
+  --viz-surface: #fcfcfb;
+  --viz-text-primary: #0b0b0b;
+  --viz-text-muted: #898781;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+
+  /* Single series. Both charts show one measure, so one hue is correct:
+     a categorical palette would imply the bars are different *kinds* of
+     thing rather than the same measure across groups. */
+  --viz-series-1: #2a78d6;
+  --viz-series-1-soft: #9ec5f4;
+
+  /* Status. Reserved — never reused as a series colour, and always paired
+     with a label so meaning never rests on hue alone. */
+  --viz-critical: #d03b3b;
+  --viz-serious: #ec835a;
+  --viz-good: #0ca30c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --viz-surface: #1a1a19;
+    --viz-text-primary: #ffffff;
+    --viz-text-muted: #898781;
+    --viz-grid: #2c2c2a;
+    --viz-axis: #383835;
+    --viz-series-1: #3987e5;
+    --viz-series-1-soft: #1c5cab;
+  }
+}
+
+:root[data-theme="dark"] .viz-root {
+  color-scheme: dark;
+  --viz-surface: #1a1a19;
+  --viz-text-primary: #ffffff;
+  --viz-text-muted: #898781;
+  --viz-grid: #2c2c2a;
+  --viz-axis: #383835;
+  --viz-series-1: #3987e5;
+  --viz-series-1-soft: #1c5cab;
 }

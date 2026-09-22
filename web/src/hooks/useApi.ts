@@ -65,7 +65,13 @@ export function useEmployees(filters: DirectoryFilters) {
 export function useEmployee(id: string | undefined) {
   return useQuery({
     queryKey: ["employee", id],
-    queryFn: () => apiGet<EmployeeDetail>(`/employees/${id}`),
+    // The endpoint wraps its payload as { employee: ... }, so it is
+    // unwrapped here rather than at every call site. apiGet's type
+    // parameter is an assertion, not a check — it will happily claim a
+    // wrapper is the thing inside it, which is exactly what happened
+    // before this select was added.
+    queryFn: () => apiGet<{ employee: EmployeeDetail }>(`/employees/${id}`),
+    select: (response) => response.employee,
     // Without an id there is nothing to ask for.
     enabled: Boolean(id),
   });

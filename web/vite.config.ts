@@ -17,6 +17,11 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
+    // Vite rejects requests whose Host header it does not recognise, which
+    // is a DNS-rebinding protection worth keeping. Inside compose the
+    // service is reached as "web" by other containers, so that name has to
+    // be allowed or those requests get a 403 with an empty page.
+    allowedHosts: ["localhost", "web", "127.0.0.1"],
     // The proxy runs server-side, so the browser only ever talks to
     // localhost:5173. Same origin means no CORS and no SameSite cookie
     // handling — the single-deployment decision, applied to development.

@@ -1,6 +1,14 @@
 require "active_support/core_ext/integer/time"
 
 Rails.application.configure do
+  # Rails rejects requests whose Host header it does not recognise, which
+  # guards against DNS rebinding and is worth keeping. localhost is allowed
+  # by default, so a browser on the host works; requests arriving from
+  # another container carry the compose service name instead and are
+  # refused with a 403 that looks like an application error.
+  config.hosts << "api"
+  config.hosts << "web"
+
   # Settings specified here will take precedence over those in config/application.rb.
 
   # Make code changes take effect immediately without server restart.
