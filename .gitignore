@@ -63,9 +63,12 @@ api/vendor/bundle/
 # ---------------------------------------------------------------------------
 # Build output. The React bundle is reproducible from source.
 # ---------------------------------------------------------------------------
-api/public/assets/
-api/public/index.html
-api/public/vite.svg
+# Everything Vite writes into Rails' public directory. Listing the outputs
+# individually missed favicon.svg and icons.svg, which the build copies from
+# web/public — so the rule is now "ignore the directory, keep what Rails
+# owns" rather than a list that has to be maintained.
+api/public/*
+!api/public/robots.txt
 web/dist/
 
 # ---------------------------------------------------------------------------
