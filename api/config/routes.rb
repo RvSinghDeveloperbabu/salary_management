@@ -24,4 +24,12 @@ Rails.application.routes.draw do
 
   # Liveness probe. Returns 200 if the app boots, 500 otherwise.
   get "up" => "rails/health#show", as: :rails_health_check
+
+  # The SPA. Declared last so it can never shadow an API route: an unknown
+  # /api path must return a JSON 404, not the HTML shell, or a broken
+  # request looks to the client like a successful page load.
+  root to: "spa#index"
+  get "*path", to: "spa#index", constraints: ->(request) {
+    !request.path.start_with?("/api/") && !request.xhr?
+  }
 end

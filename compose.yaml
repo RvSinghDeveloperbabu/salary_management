@@ -36,6 +36,11 @@ services:
       # binaries, and resolving tens of thousands of small files across a
       # macOS bind mount is slow enough to be worth avoiding.
       - node_modules:/app/node_modules
+      # `npm run build` writes to ../api/public so Rails can serve the
+      # bundle. Without this mount that path resolves inside the container,
+      # where only ./web exists — the build reports success and the output
+      # disappears with the container.
+      - ./api/public:/api/public
     ports:
       - "5173:5173"
     environment:
