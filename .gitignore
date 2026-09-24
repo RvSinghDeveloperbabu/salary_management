@@ -104,13 +104,3 @@ Thumbs.db
 
 # Claude Code local settings. Machine-specific permissions, not shared.
 .claude/settings.local.json
-
-# ---------------------------------------------------------------------------
-# Internal planning and design notes. Kept locally, not published.
-#
-# The first two commits in this repository are still the documentation
-# commits, so the requirements-before-code ordering remains verifiable in
-# `git log` even though the files are no longer in the working tree.
-# ---------------------------------------------------------------------------
-docs/
-CLAUDE.md

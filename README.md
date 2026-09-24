@@ -91,6 +91,18 @@ Browser ─▶ Rails (Puma)
 - `web/README.md` explains every frontend library, the problem it solves, and
   the plain-React equivalent.
 
+### Documents
+
+| File | What it is |
+| --- | --- |
+| [docs/requirements.md](docs/requirements.md) | The one-page requirements document, written before any code — see the first commit |
+| [docs/decisions.md](docs/decisions.md) | Nine short ADRs: what was decided, what it cost, what would change it |
+| [docs/architecture.md](docs/architecture.md) | Schema and ERD, currency normalisation, API surface, measured performance |
+| [docs/build-plan.md](docs/build-plan.md) | The phased plan, kept unedited, with an outcome section recording what actually happened |
+| [docs/ai-usage.md](docs/ai-usage.md) | What was delegated to AI, what was accepted, and what was rejected — the rejections being the useful part |
+| [CLAUDE.md](CLAUDE.md) | The standing instructions the AI tooling ran under, kept verbatim |
+| [web/README.md](web/README.md) | Every frontend library, the problem it solves, and the plain-React equivalent |
+
 ### Decisions worth knowing before reading the code
 
 **Salary history is append-only and effective-dated.** A raise is an INSERT;
@@ -131,7 +143,7 @@ the numbers do not move if the database is swapped.
 overview (cold)    188 ms      overview (cached)     7 ms
 distribution        52 ms      payroll trend (24m) 188 ms
 outliers           233 ms      directory page       34 ms
-seed               5.7 s       full backend suite   ~8 s
+seed               5.7 s       full backend suite   ~11 s
 ```
 
 Analytics responses are cached against a data watermark — the most recent
