@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Job
+metadata:
+  name: rails-migration-job
+  namespace: salary-management
+spec:
+  backoffLimit: 2  ## retry 2 times if the job fails
+  ttlSecondsAfterFinished: 120  ## delete the job after 2 mins of completion
+  template:
+    metadata:
+      name: rails-migration-job
+      namespace: salary-management
+    spec:
+      restartPolicy: Never      # a failed job should not be restarted, it should be retried as a new job instead.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: rails-migrate
+          image: salary-management:latest  # This image should be built with the Rails application code and the necessary dependencies.
+          command: ["bundle", "exec", "rake", "db:migrate"]
+          envFrom:   # Use envFrom to load environment variables from ConfigMap and Secret
+            - configMapRef:
+                name: rails-config
+            - secretRef:
+                name: sql-db-secret
+          resources:  # Set resource requests and limits for the container can use to ensure it has enough resources to run the migration without being killed by the Kubernetes scheduler.
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"

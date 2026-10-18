@@ -14,6 +14,7 @@ class SalaryResource
   # Null when no rate is seeded for the currency — a visible gap rather
   # than a silently wrong number.
   attribute :amount_base_cents do |salary|
+    debugger
     rate_ppm = (params[:rates] || {})[salary.currency]
     rate_ppm && Rates.convert(salary.amount_cents, rate_ppm)
   end

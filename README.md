@@ -15,8 +15,14 @@ Everything runs in Docker. Nothing is installed on your machine — no Ruby, no
 Node, no database server.
 
 ```sh
+## Run the application
 docker compose up
+
+## Seed the Database
 docker compose exec api bin/rails db:prepare db:seed
+
+## Run the rails console
+docker compose run api bin/rails c
 ```
 
 Then open **http://localhost:5173** and sign in:
