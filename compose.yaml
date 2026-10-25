@@ -28,8 +28,9 @@ services:
     tty: true
 
   web:
-    image: node:22-slim
-    working_dir: /app
+    build:
+      context: ./web
+      dockerfile: Dockerfile
     volumes:
       - ./web:/app
       # Shadows the bind mount. node_modules holds platform-specific
@@ -48,6 +49,9 @@ services:
       # server-side, so the browser only ever sees localhost:5173 — same
       # origin, no CORS, and no SameSite cookie problem.
       VITE_API_PROXY_TARGET: http://api:3000
+
+    stdin_open: true
+    tty: true
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     depends_on:
       - api

@@ -1,0 +1,27 @@
+# WHY WE ADD IT:
+#   Admins sometimes empty a machine (node) to upgrade it. Kubernetes moves the pods
+#   off one by one. Without this rule it could stop BOTH API pods at the same
+#   moment and your site goes down. With `minAvailable: 1` it always keeps one
+#   running and waits until the moved pod is ready elsewhere.
+#
+# WHAT IF YOU CHANGE THE APP NAME?
+#   - `matchLabels: app: rails-api` must equal the pod label in 30-rails-api.yaml.
+#     Example: the pods are relabeled `app: shop-api` but this still says rails-api.
+#     The budget protects ZERO pods, and no error is shown. That is the dangerous
+#     part: it silently stops working.
+#   - `metadata.name` is only the budget's own name; renaming it changes nothing else.
+#   - `namespace: myapp` must match 00-namespace.yaml.
+#
+# PodDisruptionBudget: during planned maintenance (node upgrades, `kubectl drain`),
+# Kubernetes will not evict a Rails API pod if that would leave fewer than 1 running.
+# It does not protect against crashes, only against voluntary evictions.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: rails-api
+  namespace: salary-management
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: rails-api

@@ -1,0 +1,79 @@
+# # Sidekiq workers: the SAME image as the API, started with a different command.
+# # No Service: nothing calls Sidekiq over the network; it pulls jobs from Redis.
+# #
+# # WHY WE ADD IT:
+# #   In Docker Compose you often have a `sidekiq:` service using the same build as
+# #   `web:` but with `command: bundle exec sidekiq`. This file is that.
+# #   It is a separate Deployment so you can scale web and workers on their own
+# #   (for example 2 web pods and 5 worker pods) and restart one without the other.
+# #   `command:` replaces the Dockerfile's CMD (which starts Puma).
+# #
+# # WHAT IF YOU CHANGE THE APP NAME?
+# #   - `image: myapp/rails-api:1.0.0` -> MUST be identical to 30-rails-api.yaml.
+# #     Example: API is on 1.0.1 but Sidekiq still on 1.0.0. A job queued by new
+# #     code may not exist in old code -> "NameError: uninitialized constant" in
+# #     the worker. Always bump all of them together.
+# #   - `app: sidekiq` (selector + pod labels) must be the same word in both places.
+# #     It must be DIFFERENT from `app: rails-api`; otherwise 30's Service would
+# #     send web requests to Sidekiq pods, which have no web server.
+# #   - `name: sidekiq` is the Deployment name; you use it in commands like
+# #     kubectl -n myapp logs deploy/sidekiq. Rename -> the command changes too.
+# #   - configMapRef `rails-config` / secretRef `rails-secrets` must match 01-configmap.yaml
+# #     and secrets.example.yaml (same names as the API uses, so both share settings).
+# #   - `namespace: myapp` must match 00-namespace.yaml.
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: rails-sidekiq
+#   namespace: salary-management
+#   labels:
+#     app: rails-sidekiq
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: rails-sidekiq
+#   template:
+#     metadata:
+#       labels:
+#         app: rails-sidekiq
+#     spec:
+#       # On SIGTERM, Sidekiq stops fetching jobs and waits up to 25s (its default)
+#       # for running jobs; unfinished ones go back to Redis. Allow more than 25s.
+#       terminationGracePeriodSeconds: 60
+#       securityContext:
+#         runAsNonRoot: true
+#         runAsUser: 1000
+      
+#       # Attach the PersistentVolumeClaim that stores the SQLite database.
+#       # The PVC must exist in the same namespace as this Job.
+#       volumes:
+#         - name: sqlite-data
+#           persistentVolumeClaim:
+#             claimName: rails-sqlite-data
+
+#       containers:
+#         - name: rails-sidekiq
+#           image: salary-management-api:latest
+#           imagePullPolicy: IfNotPresent
+#           command: ["bundle", "exec", "sidekiq", "-c", "10"]
+#           # Have config/sidekiq.yml with queues? Use this instead:
+#           # command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+#           envFrom:
+#             - configMapRef:
+#                 name: rails-api-config
+#             - secretRef:
+#                 name: rails-secrets
+#           env:
+#             # `env` overrides the same key from `envFrom`, for this container only.
+#             # The DB pool (RAILS_MAX_THREADS) must be at least Sidekiq's concurrency (-c 10).
+#             - name: RAILS_MAX_THREADS
+#               value: "10"
+#           resources:
+#             requests:
+#               cpu: 250m
+#               memory: 512Mi
+#             limits:
+#               memory: 1Gi
+#           # No probes yet: open-source Sidekiq has no HTTP endpoint to check.
+#           # The sidekiq_alive gem adds one if you want a liveness probe later.

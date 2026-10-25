@@ -1,0 +1,80 @@
+# The React app: nginx serving the static build. Stateless, light, easy to scale.
+#
+# WHY WE ADD IT:
+#   This is your `frontend:` service in Compose. It has the same two parts as the
+#   API file: a Deployment (keeps 2 nginx pods alive) and a Service (stable name
+#   `frontend`). "Stateless" means it keeps no data, so pods can be killed and
+#   created freely. That makes it the easiest thing to run in Kubernetes.
+#
+# WHAT IF YOU CHANGE THE APP NAME?
+#   - `app: frontend` must match in 3 places: Deployment selector, pod labels,
+#     Service selector. If the Service one is different, the site gives 503.
+#   - Service `name: frontend` is used by 40-ingress.yaml (backend -> service -> name).
+#     Example: rename to `shop-web`. Update the Ingress too, or app.localhost
+#     shows "503 Service Unavailable" / "no available server".
+#   - `image: myapp/frontend:1.0.0` is the image from frontend/Dockerfile.
+#     Example: `docker build -t shop/web:2.0.0 frontend/` then set `image: shop/web:2.0.0`
+#     here. A wrong name gives ImagePullBackOff.
+#   - The API address is NOT set here. React bakes it into the JavaScript when you
+#     RUN `docker build` (see frontend/Dockerfile, VITE_API_URL). If you change the
+#     API host name, you must REBUILD the frontend image; editing this file is not enough.
+#   - `namespace: myapp` must match 00-namespace.yaml.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: react-web
+  namespace: salary-management
+  labels:
+    app: react-web
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: react-web
+  template:
+    metadata:
+      labels:
+        app: react-web
+    spec:
+      containers:
+        - name: react-web
+          image: salary-management-web:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: react-web
+  namespace: salary-management
+spec:
+  type: ClusterIP
+  selector:
+    app: react-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

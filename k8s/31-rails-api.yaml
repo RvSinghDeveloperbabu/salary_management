@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rails-api
+  namespace: salary-management
+  labels:
+    app: rails-api
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5        # old versions kept for `kubectl rollout undo`
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1                # start 1 new pod before stopping an old one
+      maxUnavailable: 0  
+  selector:
+    matchLabels:
+      app: rails-api
+  template:
+    metadata:
+      labels:
+        app: rails-api
+    spec:
+      # On shutdown Kubernetes sends SIGTERM, waits this long, then SIGKILL.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+
+      
+      # Attach the PersistentVolumeClaim that stores the SQLite database.
+      # The PVC must exist in the same namespace as this Job.
+      volumes:
+        - name: sqlite-data
+          persistentVolumeClaim:
+            claimName: rails-sqlite-data
+      containers:
+        - name: rails-api
+          image: salary-management-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000            # Puma's port
+          env:
+            - name: RAILS_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: rails-secrets
+                  key: RAILS_MASTER_KEY
+          envFrom:
+            - configMapRef:
+                name: rails-api-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # Startup: give Rails up to 30 x 5s = 150s to boot before other probes begin.
+          startupProbe:
+            httpGet:
+              path: /up                      # Rails 7.1+ built-in health check
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          # Readiness: "send me traffic?" Failing removes the pod from the Service; no restart.
+          readinessProbe:
+            httpGet:
+              path: /up
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # Liveness: "are you stuck?" Failing restarts the container.
+          livenessProbe:
+            httpGet:
+              path: /up
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                # Wait while the pod is removed from the Service,
+                # so no request arrives after Puma starts shutting down.
+                command: ["sleep", "5"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rails-api
+  namespace: salary-management
+spec:
+  type: ClusterIP                # reachable only inside the cluster; the Ingress exposes it
+  selector:
+    app: rails-api               # send traffic to every ready pod with this label
+  ports:
+    - name: http
+      port: 80                   # what callers use: http://rails-api
+      targetPort: http           # the container port named "http" (3000)
+          

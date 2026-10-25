@@ -1,30 +1,83 @@
-apiVersion: v1
+
+# Kubernetes Job that runs Rails database migrations.
+# It creates or updates database tables using migration files in db/migrate.
+apiVersion: batch/v1
 kind: Job
+
 metadata:
   name: rails-migration-job
   namespace: salary-management
+
 spec:
-  backoffLimit: 2  ## retry 2 times if the job fails
-  ttlSecondsAfterFinished: 120  ## delete the job after 2 mins of completion
+  # Kubernetes allows up to 2 retries after a failed attempt.
+  # Total attempts can be up to 3: the original attempt + 2 retries.
+  backoffLimit: 2
+
+  # Automatically delete the completed Job and its Pods after 120 seconds.
+  # Useful for local development, but inspect logs before this TTL expires.
+  ttlSecondsAfterFinished: 120
+
+  # A Job must define a Pod template that runs the migration container.
   template:
     metadata:
+      # Name assigned to the Pod created by this Job.
       name: rails-migration-job
-      namespace: salary-management
+
     spec:
-      restartPolicy: Never      # a failed job should not be restarted, it should be retried as a new job instead.
+      # Do not restart the container inside the same Pod after it fails.
+      # The Job controller can create another Pod to retry the task.
+      restartPolicy: Never
+
+      # Run the container as a non-root Linux user for better security.
+      # Ensure this user has permission to write to the mounted SQLite volume.
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
+
+      # Attach the PersistentVolumeClaim that stores the SQLite database.
+      # The PVC must exist in the same namespace as this Job.
+      volumes:
+        - name: sqlite-data
+          persistentVolumeClaim:
+            claimName: rails-sqlite-data
+
       containers:
         - name: rails-migrate
-          image: salary-management:latest  # This image should be built with the Rails application code and the necessary dependencies.
+
+          # Image must contain the Rails application code and its dependencies.
+          # If you rebuild the image, consider using a new tag instead of latest.
+          image: salary-management-api:latest
+
+          # Use the locally available image when possible; don't always pull it.
+          imagePullPolicy: IfNotPresent
+
+          # Run pending Rails migrations against the production database.
+          # This requires config/database.yml to point to the SQLite file
+          # at /rails-storage/production.sqlite3.
           command: ["bundle", "exec", "rake", "db:migrate"]
-          envFrom:   # Use envFrom to load environment variables from ConfigMap and Secret
+
+          # Load environment variables from the Rails ConfigMap.
+          # The ConfigMap currently supplies RAILS_ENV=production.
+          # No MySQL password Secret is needed for SQLite.
+          envFrom:
             - configMapRef:
-                name: rails-config
-            - secretRef:
-                name: sql-db-secret
-          resources:  # Set resource requests and limits for the container can use to ensure it has enough resources to run the migration without being killed by the Kubernetes scheduler.
+                name: rails-api-config
+          env:
+            - name: RAILS_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: rails-secrets
+                  key: RAILS_MASTER_KEY
+
+          # Mount the same SQLite storage path used by the Rails API and Sidekiq.
+          # All workloads must use the same database file to share application data.
+          volumeMounts:
+            - name: sqlite-data
+              mountPath: /rails-storage
+
+          # Resource requests help Kubernetes schedule the migration Pod.
+          # Limits cap the resources the container can consume.
+          resources:
             requests:
               memory: "256Mi"
               cpu: "250m"

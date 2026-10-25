@@ -1,57 +1,12 @@
-# Headless service for SQL database
-apiVersion: v1
-kind: Service
-metadata:
-  name: sql-db
-  namespace: salary-management
-spec:
-  clusterIP: None
-  selector:
-    app: sql-db
-  ports:
-    - name: sql-db
-      port: 3306
 
----
-# FIX: `kind` was written as "statefulset" (all lowercase). Kubernetes kind names
-# are case-sensitive, so it must be exactly "StatefulSet". With the lowercase
-# spelling the API server could not find that kind and rejected the object.
-apiVersion: apps/v1
-kind: StatefulSet
+apiVersion: v1
+kind: PersistentVolumeClaim
 metadata:
-  name: sql-db
+  name: rails-sqlite-data
   namespace: salary-management
 spec:
-  serviceName: sql-db
-  replicas: 1
-  selector:
-    matchLabels:
-      app: sql-db
-  template:
-    metadata:
-      labels:
-        app: sql-db
-    spec:
-      containers:
-        - name: sql-db
-          image: mysql:8.0
-          env:
-            - name: MYSQL_ROOT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: sql-db-secret
-                  key: mysql-root-password
-          ports:
-            - containerPort: 3306
-              name: sql-db
-          volumeMounts:
-            - name: sql-db-data
-              mountPath: /var/lib/mysql
-  volumeClaimTemplates:
-    - metadata:
-        name: sql-db-data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi

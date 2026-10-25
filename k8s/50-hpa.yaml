@@ -1,0 +1,37 @@
+# Adds or removes Rails API pods based on CPU use.
+#
+# WHY WE ADD IT:
+#   Docker Compose has no automatic scaling; you type `--scale web=3` yourself.
+#   HPA = Horizontal Pod Autoscaler. Busy at lunch time? It adds pods (up to 6).
+#   Quiet at night? It removes them (down to 2). You save money and avoid overload.
+#   Example: 2 pods each using 90% of their requested CPU (target is 70%) ->
+#   HPA computes 2 x 90/70 = 2.6 -> it scales up to 3 pods.
+#
+# WHAT IF YOU CHANGE THE APP NAME?
+#   - `scaleTargetRef.name: rails-api` must equal the Deployment name in
+#     30-rails-api.yaml. Example: you rename the Deployment to `shop-api` and
+#     forget this. HPA shows "unable to get target" and never scales anything.
+#   - `metadata.name: rails-api` is only this HPA's own name; it can be anything.
+#   - `namespace: myapp` must match 00-namespace.yaml (HPA and its target must share one).
+# Needs metrics-server in the cluster (k3d/k3s includes it; on EKS you install it).
+# Once this exists, delete `replicas:` from 30-rails-api.yaml, or every
+# `kubectl apply` resets the count the autoscaler chose.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: rails-api
+  namespace: salary-management
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rails-api
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70      # percent of the CPU *request* (250m), averaged over pods

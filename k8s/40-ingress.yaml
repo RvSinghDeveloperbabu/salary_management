@@ -1,0 +1,62 @@
+# The front door: routes outside HTTP traffic to the right Service by hostname.
+# An Ingress does nothing without an Ingress controller running in the cluster.
+#
+# WHY WE ADD IT:
+#   Our Services are ClusterIP = reachable only INSIDE the cluster. In Compose you
+#   wrote `ports: "3000:3000"` to open a door. Kubernetes has no such line.
+#   Instead, one Ingress is the single door, and it reads the host name in the
+#   browser request to decide where to send it:
+#       app.localhost -> Service `frontend`  (React site)
+#       api.localhost -> Service `rails-api` (Rails API)
+#   The Ingress is only the RULES. A program called the "Ingress controller"
+#   (here Traefik) reads the rules and does the real work.
+#
+# WHAT IF YOU CHANGE THE APP NAME?
+#   - `host: app.localhost` is the web address. Example: change to `shop.localhost`.
+#     Then browse to http://shop.localhost:8080. The old app.localhost now gives 404
+#     (the door has no rule for that name).
+#     Also update FRONTEND_ORIGIN in 01-configmap.yaml (CORS) and rebuild the
+#     frontend image with the new VITE_API_URL if you change the api host.
+#   - `service: name: frontend` / `rails-api` must match the Service names in
+#     32-frontend.yaml and 30-rails-api.yaml. If you rename a Service and not here:
+#     the page shows 503, and `kubectl describe ingress` shows "service not found".
+#   - `metadata.name: myapp` is just this Ingress object's own label. Renaming it
+#     only changes `kubectl get ingress` output. Nothing else depends on it.
+#   - `namespace: myapp` must match 00-namespace.yaml. An Ingress can only
+#     send traffic to Services in its own namespace.
+#   - `ingressClassName: traefik` picks which controller handles this. Wrong name =
+#     nobody handles it, and the page never loads.
+# k3d/k3s ships Traefik, so ingressClassName is "traefik".
+# Do not install the old ingress-nginx controller: it was retired in March 2026.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: salary-management
+  namespace: salary-management
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: app.localhost                 # production: app.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: react-web
+                port:
+                  name: http
+    - host: api.localhost                 # production: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rails-api
+                port:
+                  name: http
+  # Production: HTTPS. cert-manager can issue the certificate into this Secret.
+  # tls:
+  #   - hosts: [app.example.com, api.example.com]
+  #     secretName: myapp-tls
