@@ -68,11 +68,11 @@ group :development, :test do
   # alone so their generators are available.
   gem "rspec-rails"
   gem "factory_bot_rails"
-
-  # Faker is also used by db/seeds.rb, which runs in development.
-  # Seeded with a fixed value there: the dataset must be reproducible.
-  gem "faker"
 end
+
+# Faker is also used by db/seeds.rb, which runs in development.
+# Seeded with a fixed value there: the dataset must be reproducible.
+gem "faker"
 
 group :test do
   gem "shoulda-matchers"

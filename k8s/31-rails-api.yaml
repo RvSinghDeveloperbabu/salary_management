@@ -38,6 +38,9 @@ spec:
         - name: rails-api
           image: salary-management-api:latest
           imagePullPolicy: IfNotPresent
+          volumeMounts:               ## Defining volume is not enough; you must also mount it into the container.
+            - name: sqlite-data
+              mountPath: /rails-storage
           ports:
             - name: http
               containerPort: 3000            # Puma's port

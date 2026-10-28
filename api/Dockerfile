@@ -25,7 +25,10 @@ RUN bundle install
 
 COPY . .
 
-RUN chmod +x bin/rails
+RUN chmod +x bin/rails \
+ && mkdir -p /app/tmp/cache /app/tmp/pids /app/log \
+ && chown -R 1000:1000 /app/tmp /app/log \
+ && chmod -R u+rwX /app/tmp /app/log
 
 EXPOSE 3000
 

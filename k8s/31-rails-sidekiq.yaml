@@ -57,6 +57,9 @@
 #           image: salary-management-api:latest
 #           imagePullPolicy: IfNotPresent
 #           command: ["bundle", "exec", "sidekiq", "-c", "10"]
+#           volumeMounts:               ## Defining volume is not enough; you must also mount it into the container.
+#            - name: sqlite-data
+#              mountPath: /rails-storage
 #           # Have config/sidekiq.yml with queues? Use this instead:
 #           # command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
 #           envFrom:

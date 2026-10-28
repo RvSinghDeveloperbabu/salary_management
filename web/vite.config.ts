@@ -39,10 +39,10 @@ export default defineConfig({
   build: {
     // Rails serves the built bundle from its own public directory: one
     // process, one URL, no second host and no CORS configuration.
-    outDir: "../api/public",
+    outDir: "dist",
     // Rails keeps robots.txt and its error pages here. Emptying the
     // directory on build would delete them.
-    emptyOutDir: false,
+    emptyOutDir: true,
     sourcemap: true,
   },
 

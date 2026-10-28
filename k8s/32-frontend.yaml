@@ -27,7 +27,7 @@ metadata:
   labels:
     app: react-web
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -50,12 +50,12 @@ spec:
               containerPort: 80
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /login
               port: http
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /login
               port: http
             periodSeconds: 20
           resources:

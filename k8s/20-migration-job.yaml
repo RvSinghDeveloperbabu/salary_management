@@ -54,7 +54,14 @@ spec:
           # Run pending Rails migrations against the production database.
           # This requires config/database.yml to point to the SQLite file
           # at /rails-storage/production.sqlite3.
-          command: ["bundle", "exec", "rake", "db:migrate"]
+          # command: ["bundle", "exec", "rake", "db:migrate", "&&", "bundle", "exec", "rake", "db:seed"]
+          command: ## when we have to run multiple commands, we need to use the shell to run them in sequence
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              bundle exec rake db:migrate
+              bundle exec rake db:seed
 
           # Load environment variables from the Rails ConfigMap.
           # The ConfigMap currently supplies RAILS_ENV=production.

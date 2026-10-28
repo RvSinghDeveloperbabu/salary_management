@@ -77,7 +77,7 @@ EMPLOYMENT_TYPES = [ [ "full_time", 88 ], [ "part_time", 7 ], [ "contract", 5 ] 
 RAISE_REASONS = %w[merit merit merit promotion market_adjustment].freeze
 
 HR_MANAGER_EMAIL = "hr@example.com".freeze
-HR_MANAGER_PASSWORD = "compensation2026".freeze
+HR_MANAGER_PASSWORD = "TestTest@1244".freeze
 
 TERMINATED_SHARE = 0.08
 OUTLIERS_BELOW = 22
