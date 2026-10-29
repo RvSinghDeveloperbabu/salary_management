@@ -71,10 +71,12 @@ metadata:
   name: react-web
   namespace: salary-management
 spec:
-  type: ClusterIP
+  # type: ClusterIP
+  type: NodePort
   selector:
     app: react-web
   ports:
     - name: http
       port: 80
       targetPort: http
+      nodePort: 30002
